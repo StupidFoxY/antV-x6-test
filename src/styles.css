@@ -3,3 +3,16 @@ body {
     margin: 0;
     padding: 0;
 }
+@keyframes running-line { /* 无法加 ng-deep 只能写在这 */
+    to {
+        stroke-dashoffset: -1000;
+    }
+}
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}

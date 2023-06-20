@@ -1,5 +1,5 @@
 import { Component, ViewChild, TemplateRef, Injector } from '@angular/core';
-import { Graph, Shape } from "@antv/x6";
+import { Graph, Shape, Path } from "@antv/x6";
 import { Stencil } from '@antv/x6-plugin-stencil';      // 侧边栏的 UI 组件
 import { Snapline } from "@antv/x6-plugin-snapline";    // 对齐线
 import { Keyboard } from '@antv/x6-plugin-keyboard';    // 快捷键
@@ -55,12 +55,13 @@ export class AppComponent {
       mousewheel: true, //滚轮缩放
       connecting: { //连接线配置
         //router: 'manhattan', //路径类型
-        connector: { //起点终点类型
-          name: 'rounded',
-          args: {
-            radius: 8,
-          },
-        },
+        // connector: { //起点终点类型
+        //   name: 'rounded',
+        //   args: {
+        //     radius: 8,
+        //   },
+        // },
+        connector: 'algo-connector', //自定义起点终点类型
         anchor: 'center', //当连接节点的锚点，默认值为节点的 center 
         connectionPoint: 'anchor', //指定节点的连接点，默认为 boundary(节点边框)，此处改为以 anchor(锚点连接)
         allowBlank: false, //是否允许连接到画布空白位置
@@ -100,6 +101,27 @@ export class AppComponent {
       },
     });
 
+    Graph.registerConnector( // 起点终点路径
+      'algo-connector',
+      (s, e) => {
+        const offset = 4
+        const deltaY = Math.abs(e.y - s.y)
+        const control = Math.floor((deltaY / 3) * 2)
+
+        const v1 = { x: s.x, y: s.y + offset + control }
+        const v2 = { x: e.x, y: e.y - offset - control }
+
+        return Path.normalize(
+          `M ${s.x} ${s.y}
+           L ${s.x} ${s.y + offset}
+           C ${v1.x} ${v1.y} ${v2.x} ${v2.y} ${e.x} ${e.y - offset}
+           L ${e.x} ${e.y}
+          `,
+        )
+      },
+      true,
+    )
+
     // 使用插件
     this.graph.use(new Snapline())
     .use(new Keyboard())
@@ -109,6 +131,7 @@ export class AppComponent {
       new Selection({
         rubberband: true, // 启用框选功能
         showNodeSelectionBox: true, // 显示节点的选择框
+        modifiers: 'ctrl', // 按住ctrl
       }),
     )
 
@@ -172,19 +195,19 @@ export class AppComponent {
       })
     }
 
-    // graph.on('node:change:data', ({ node }) => { // 节点data发生变化是触发
-    //   const edges = graph.getIncomingEdges(node)
-    //   const { status } = node.getData() as NodeStatus
-    //   edges?.forEach((edge) => {
-    //     if (status === 'running') {
-    //       edge.attr('line/strokeDasharray', 5)
-    //       edge.attr('line/style/animation', 'running-line 30s infinite linear')
-    //     } else {
-    //       edge.attr('line/strokeDasharray', '')
-    //       edge.attr('line/style/animation', '')
-    //     }
-    //   })
-    // })
+    this.graph.on('node:change:data', ({ node }) => { // 节点data发生变化是触发, 用来改变running时候的连接线样式
+      const edges = this.graph.getIncomingEdges(node)
+      const { status } = node.getData().ngArguments;
+      edges?.forEach((edge) => {
+        if (status === 'running') {
+          edge.attr('line/strokeDasharray', 5)
+          edge.attr('line/style/animation', 'running-line 30s infinite linear')
+        } else {
+          edge.attr('line/strokeDasharray', '')
+          edge.attr('line/style/animation', '')
+        }
+      })
+    })
 
     self.stencilInit();
   }
@@ -333,11 +356,13 @@ export class AppComponent {
   }
 
   updateStatus(){
-    let node1 = this.graph.getNodes()[0];
-    node1.setData({ //angualr 节点 更新数据
-      ngArguments: {
-        status: 'success',
-      },
-    })
+    let node1 = this.graph.getNodes()[1];
+    if(node1){
+      node1.setData({ //angualr 节点 更新数据
+        ngArguments: {
+          status: 'running',
+        },
+      })
+    }
   }
 }
